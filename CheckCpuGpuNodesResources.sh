@@ -18,18 +18,24 @@ echo " "
 ### Check if slurm is installed or not
 ### Check if slurm is installed or not
 ### Check if slurm is installed or not
-sinfo -V >CheckGpuNodesResources.log
-numLines=$(awk 'END {print NR}' CheckGpuNodesResources.log)
+logh=log_CheckCpuGpuNodesResources.log
+strE=$(sinfo -V)
+if [ -z "${strE}" ]; then
+        echo -e "${RED}${BOLD}Slurm is not installed${NC}"
+        exit
+fi
+sinfo -V >${logh}
+numLines=$(awk 'END {print NR}' ${logh})
 numLines=$(($numLines))
 if [ $numLines -gt 1 ]; then
         echo -e "${RED}${BOLD}Slurm is not installed${NC}"
         exit
 fi
-if grep -wq "not found" CheckGpuNodesResources.log; then
+if grep -wq "not found" ${logh}; then
         echo -e "${RED}${BOLD}Slurm is not installed${NC}"
         exit
 fi
-if grep -wq "bash" CheckGpuNodesResources.log; then
+if grep -wq "bash" ${logh}; then
         echo -e "${RED}${BOLD}Slurm is not installed${NC}"
         exit
 fi
@@ -37,20 +43,32 @@ fi
 #node names
 #node names
 #node names
-NodeName=('xnode09'
-        'xnode24'
-        'grtq14'
-        'grtq15')
-for ((i = 2; i < 13; i++)); do
-        TU=$(printf %02d $i)
-        NodeName+=('gvnq'$TU)
+# NodeName=('xnode09'
+#         'xnode24'
+#         'grtq14'
+#         'grtq15')
+# for ((i = 2; i < 13; i++)); do
+#         TU=$(printf %02d $i)
+#         NodeName+=('gvnq'$TU)
+# done
+# NodeName+=('gvnq14')
+# NodeName+=('gvno01' 'gvno02' 'gvno03' 'grtq14' 'grtq15')
+# for ((i = 1; i < 20; i++)); do
+#         TU=$(printf %02d $i)
+#         NodeName+=('ga40q'$TU)
+# done
+NodeName=('xnode09')
+sinfo -N --noheader >${logh}
+numLines=$(awk 'END {print NR}' ${logh})
+numLines=$(($numLines))
+NodeName=('grtq14')
+for ((i = 1; i <= $numLines; i++)); do
+        strUI="${i}q;d"
+        strTY=$(sed ${strUI} ${logh})
+        strTY=$(echo $strTY | cut -d ' ' -f 1)
+        NodeName+=(${strTY})
 done
-NodeName+=('gvnq14')
-NodeName+=('gvno01' 'gvno02' 'gvno03' 'grtq14' 'grtq15')
-for ((i = 1; i < 20; i++)); do
-        TU=$(printf %02d $i)
-        NodeName+=('ga40q'$TU)
-done
+
 # start checking
 # start checking
 # start checking
@@ -58,20 +76,20 @@ len=${#NodeName[@]}
 for ((i = 0; i < $len; i++)); do
         Node_i=${NodeName[$i]}
 
-        scontrol show node $Node_i >CheckGpuNodesResources.log
+        scontrol show node $Node_i >${logh}
 
-        if grep -wq "not found" CheckGpuNodesResources.log; then
+        if grep -wq "not found" ${logh}; then
                 echo -e ${RED}$BOLD"Node: "$Node_i" is not found"${NC}
                 continue
         fi
 
         IfGPU=0
-        if grep -wq "gpu" CheckGpuNodesResources.log; then
+        if grep -wq "gpu" ${logh}; then
                 IfGPU=1
         fi
 
         # cpu
-        line1=$(sed '2q;d' CheckGpuNodesResources.log)
+        line1=$(sed '2q;d' ${logh})
         str1=$(echo $line1 | cut -d '=' -f 2)
         str2=$(echo $str1 | cut -d ' ' -f 1)
 
@@ -83,9 +101,9 @@ for ((i = 0; i < $len; i++)); do
         str6=""
 
         if [ $IfGPU -gt 0 ]; then
-                line5=$(sed '5q;d' CheckGpuNodesResources.log)
+                line5=$(sed '5q;d' ${logh})
                 str5=$(echo $line5 | cut -d ':' -f 2)
-                line14=$(sed '14q;d' CheckGpuNodesResources.log)
+                line14=$(sed '14q;d' ${logh})
                 str6=$(echo $line14 | cut -d '=' -f 5)
         else
                 str5="0"
@@ -93,7 +111,7 @@ for ((i = 0; i < $len; i++)); do
         fi
 
         # memory
-        line8=$(sed '8q;d' CheckGpuNodesResources.log)
+        line8=$(sed '8q;d' ${logh})
         str7=$(echo $line8 | cut -d ' ' -f 1)
         str8=$(echo $str7 | cut -d '=' -f 2)
         RealMemory=$(($str8))
@@ -105,7 +123,7 @@ for ((i = 0; i < $len; i++)); do
         OccupiedMemory=$(printf "%f\n" $((OccupiedMemory / 1024)))
 
         # under which partition
-        line10=$(sed '10q;d' CheckGpuNodesResources.log)
+        line10=$(sed '10q;d' ${logh})
         str11=$(echo $line10 | cut -d '=' -f 2)
 
         if [ $IfGPU -gt 0 ]; then
