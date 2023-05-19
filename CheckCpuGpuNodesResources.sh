@@ -43,32 +43,52 @@ fi
 #node names
 #node names
 #node names
-# NodeName=('xnode09'
-#         'xnode24'
-#         'grtq14'
-#         'grtq15')
-# for ((i = 2; i < 13; i++)); do
-#         TU=$(printf %02d $i)
-#         NodeName+=('gvnq'$TU)
-# done
-# NodeName+=('gvnq14')
-# NodeName+=('gvno01' 'gvno02' 'gvno03' 'grtq14' 'grtq15')
-# for ((i = 1; i < 20; i++)); do
-#         TU=$(printf %02d $i)
-#         NodeName+=('ga40q'$TU)
-# done
-NodeName=('xnode09')
-sinfo -N --noheader >${logh}
-numLines=$(awk 'END {print NR}' ${logh})
-numLines=$(($numLines))
-NodeName=('grtq14')
-for ((i = 1; i <= $numLines; i++)); do
-        strUI="${i}q;d"
-        strTY=$(sed ${strUI} ${logh})
-        strTY=$(echo $strTY | cut -d ' ' -f 1)
-        NodeName+=(${strTY})
-done
+# NodeName=('gvno02')
 
+if [ ! -n "$1" ]; then
+        echo "Please define the mode as the 1st input"
+        echo "1: Check all nodes you can use"
+        echo "2: Some specific nodes (you have to add them in this script)"
+        exit 0
+fi
+let mode_=$1
+
+#----------------------
+NodeName=('xnode09')
+if [ $mode_ -eq 2 ]; then #### add the nodes that  you want to check in the below code block
+        NodeName=('xnode09'
+                'xnode24'
+                'grtq14'
+                'grtq15')
+        for ((i = 2; i < 13; i++)); do
+                TU=$(printf %02d $i)
+                NodeName+=('gvnq'$TU)
+        done
+        NodeName+=('gvnq14')
+        NodeName+=('gvno01' 'gvno02' 'gvno03' 'grtq14' 'grtq15')
+        for ((i = 1; i < 20; i++)); do
+                TU=$(printf %02d $i)
+                NodeName+=('ga40q'$TU)
+        done
+        NodeName+=('gvna01' 'gvna02')
+elif [ $mode_ -eq 1 ]; then
+        #-------------------------------------
+        sinfo -N --noheader >${logh}
+        numLines=$(awk 'END {print NR}' ${logh})
+        numLines=$(($numLines))
+        NodeName=('grtq14')
+        for ((i = 1; i <= $numLines; i++)); do
+                strUI="${i}q;d"
+                strTY=$(sed ${strUI} ${logh})
+                strTY=$(echo $strTY | cut -d ' ' -f 1)
+                NodeName+=(${strTY})
+        done
+else
+        echo "Please define the mode as the 1st input"
+        echo "1: Check all nodes you can use"
+        echo "2: Some specific nodes (you have to add them in this script)"
+        exit 0
+fi
 # start checking
 # start checking
 # start checking
@@ -105,6 +125,9 @@ for ((i = 0; i < $len; i++)); do
                 str5=$(echo $line5 | cut -d ':' -f 2)
                 line14=$(sed '14q;d' ${logh})
                 str6=$(echo $line14 | cut -d '=' -f 5)
+                if [ -z "${str6}" ]; then
+                        str6="0"
+                fi
         else
                 str5="0"
                 str6="0"
@@ -134,3 +157,4 @@ for ((i = 0; i < $len; i++)); do
 done
 
 echo " "$NORMAL
+rm -rf ./$logh
